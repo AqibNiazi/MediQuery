@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
 
     // Make request to Groq API
     const response = await client.chat.completions.create({
-      model: "llama3-8b-8192",
+      model: "llama-3.1-8b-instant",
       messages: [
         {
           role: 'system',
