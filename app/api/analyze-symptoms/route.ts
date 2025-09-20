@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import OpenAI from 'openai';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,8 +14,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if Grok API key is available
-    const apiKey = process.env.GROK_API_KEY;
+    // Check if Groq API key is available
+    const apiKey = process.env.GROQ_API_KEY;
     
     if (!apiKey) {
       // Return mock response when no API key is provided
@@ -49,19 +50,19 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(mockResponse);
     }
 
-    // Make request to Grok API
-    const response = await fetch('https://api.x.ai/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'grok-2',
-        messages: [
-          {
-            role: 'system',
-            content: `You are a helpful AI healthcare assistant. You do not provide diagnoses. You explain symptoms, suggest possible causes, home care, and warning signs in simple language at an 8th grade reading level.
+    // Initialize Groq client
+    const client = new OpenAI({
+      apiKey: apiKey,
+      baseURL: "https://api.groq.com/openai/v1",
+    });
+
+    // Make request to Groq API
+    const response = await client.chat.completions.create({
+      model: "llama3-8b-8192",
+      messages: [
+        {
+          role: 'system',
+          content: `You are a helpful AI healthcare assistant. You do not provide diagnoses. You explain symptoms, suggest possible causes, home care, and warning signs in simple language at an 8th grade reading level.
 
 IMPORTANT: Always include medical disclaimers. Never provide definitive diagnoses.
 
@@ -73,29 +74,23 @@ Respond with a JSON object containing exactly these fields:
 - urgentWarnings: Array of 3-5 warning signs requiring immediate medical attention
 
 Keep language simple, supportive, and educational.`
-          },
-          {
-            role: 'user',
-            content: `Patient reports: "${symptoms}". Please provide educational information about these symptoms.`
-          }
-        ],
-        temperature: 0.7,
-        max_tokens: 1000
-      })
+        },
+        {
+          role: 'user',
+          content: `Patient reports: "${symptoms}". Please provide educational information about these symptoms.`
+        }
+      ],
+      temperature: 0.7,
+      max_tokens: 1000
     });
 
-    if (!response.ok) {
-      throw new Error(`Grok API error: ${response.status}`);
-    }
-
-    const data = await response.json();
-    const content = data.choices[0]?.message?.content;
+    const content = response.choices[0]?.message?.content;
 
     if (!content) {
-      throw new Error('No response from Grok API');
+      throw new Error('No response from Groq API');
     }
 
-    // Parse the JSON response from Grok
+    // Parse the JSON response from Groq
     let parsedResponse;
     try {
       parsedResponse = JSON.parse(content);

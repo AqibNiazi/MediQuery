@@ -15,7 +15,7 @@ A hackathon-ready MVP that helps patients input symptoms and get clear, patient-
 
 - **Frontend**: Next.js 13, React, TypeScript, Tailwind CSS, shadcn/ui
 - **Backend**: Next.js API routes
-- **AI Integration**: OpenAI GPT-4 API
+- **AI Integration**: Groq API with Llama models
 - **PDF Generation**: jsPDF
 - **Styling**: Tailwind CSS with custom medical color system
 
@@ -29,7 +29,7 @@ A hackathon-ready MVP that helps patients input symptoms and get clear, patient-
 2. **Set up environment variables**:
    ```bash
    # Copy .env.local and add your OpenAI API key
-   GROK_API_KEY=your_grok_api_key_here
+   GROQ_API_KEY=your_groq_api_key_here
    ```
    
    *Note: The app works with mock data if no API key is provided - perfect for demos!*
@@ -82,7 +82,7 @@ A hackathon-ready MVP that helps patients input symptoms and get clear, patient-
 ## 📋 Environment Variables
 
 ```bash
-GROK_API_KEY=your_grok_api_key_here
+GROQ_API_KEY=your_groq_api_key_here
 ```
 
 ## 🚀 Deployment
