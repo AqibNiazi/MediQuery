@@ -78,7 +78,7 @@ Output JSON only in this format (no extra text):
     }
 
     // ✅ Human readable summary
-    const humanReadable = `
+    const readable = `
 Understanding Your Symptoms:
 - ${analysis.explanation}
 
