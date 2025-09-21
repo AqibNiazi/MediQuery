@@ -1,138 +1,106 @@
-import { NextRequest, NextResponse } from 'next/server';
-import OpenAI from 'openai';
+import { NextResponse } from "next/server";
 
-export const dynamic = 'force-dynamic';
-
-export async function POST(request: NextRequest) {
+export async function POST(req: Request) {
   try {
-    const { symptoms } = await request.json();
+    const { symptoms } = await req.json();
 
-    if (!symptoms || typeof symptoms !== 'string') {
-      return NextResponse.json(
-        { error: 'Symptoms are required and must be a string' },
-        { status: 400 }
-      );
+    if (!symptoms) {
+      return NextResponse.json({ error: "No symptoms provided" }, { status: 400 });
     }
 
-    // Check if Groq API key is available
-    const apiKey = process.env.GROQ_API_KEY;
-    
-    if (!apiKey) {
-      // Return mock response when no API key is provided
-      const mockResponse = {
-        explanation: `Based on your symptoms: "${symptoms}", here's what you should know. Please note this is educational information only and not a medical diagnosis.`,
-        possibleCauses: [
-          "Common viral infection - Often causes similar symptoms and usually resolves on its own",
-          "Seasonal allergies - Environmental factors can trigger these symptoms",
-          "Minor bacterial infection - May require medical attention if symptoms persist"
+    // Call Groq API
+    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "meta-llama/llama-4-scout-17b-16e-instruct",
+        messages: [
+          {
+            role: "system",
+            content: `
+You are a medical assistant. Respond clearly and simply to patients.
+Do NOT give a diagnosis. 
+
+Output JSON only in this format (no extra text):
+{
+  "explanation": "Explain the symptoms in 2-3 simple sentences.",
+  "possibleCauses": ["Short list of possible causes"],
+  "homeRemedies": ["Simple self-care suggestions"],
+  "whenToSeeDoctor": ["Clear guidance on when to consult a doctor"],
+  "urgentWarnings": ["Immediate medical attention warning signs"]
+}
+            `,
+          },
+          {
+            role: "user",
+            content: `Patient reports: ${symptoms}`,
+          },
         ],
+        temperature: 0.7,
+      }),
+    });
+
+    const data = await response.json();
+    let text = data?.choices?.[0]?.message?.content || "";
+
+    // 🧹 Clean unwanted markdown (```json ... ```)
+    text = text.replace(/```json|```/g, "").trim();
+
+    let analysis;
+    try {
+      analysis = JSON.parse(text);
+    } catch {
+      console.warn("⚠️ Failed to parse JSON, falling back to defaults:", text);
+      analysis = {
+        explanation: `Based on your symptoms: "${symptoms}", here’s some guidance.`,
+        possibleCauses: ["Common viral infection", "Allergies", "Mild bacterial infection"],
         homeRemedies: [
-          "Get plenty of rest and stay hydrated",
-          "Use over-the-counter pain relievers as directed",
-          "Apply warm or cold compresses as appropriate",
-          "Maintain good hygiene practices"
+          "Rest and stay hydrated",
+          "Use mild pain relievers if needed",
+          "Apply warm/cold compress",
+          "Maintain good hygiene",
         ],
         whenToSeeDoctor: [
-          "Symptoms persist for more than 7-10 days",
-          "Symptoms worsen significantly",
-          "You develop additional concerning symptoms",
-          "You have underlying health conditions"
+          "If symptoms last more than 7 days",
+          "If symptoms get worse",
+          "If new symptoms appear",
         ],
         urgentWarnings: [
-          "Difficulty breathing or shortness of breath",
+          "Difficulty breathing",
           "Severe chest pain",
-          "High fever (over 103°F/39.4°C)",
-          "Signs of dehydration",
-          "Severe headache with neck stiffness"
-        ]
-      };
-
-      return NextResponse.json(mockResponse);
-    }
-
-    // Initialize Groq client
-    const client = new OpenAI({
-      apiKey: apiKey,
-      baseURL: "https://api.groq.com/openai/v1",
-    });
-
-    // Make request to Groq API
-    const response = await client.chat.completions.create({
-      model: "llama3-8b-8192",
-      messages: [
-        {
-          role: 'system',
-          content: `You are a helpful AI healthcare assistant. You do not provide diagnoses. You explain symptoms, suggest possible causes, home care, and warning signs in simple language at an 8th grade reading level.
-
-IMPORTANT: Always include medical disclaimers. Never provide definitive diagnoses.
-
-Respond with a JSON object containing exactly these fields:
-- explanation: A clear, patient-friendly explanation of the symptoms (2-3 sentences)
-- possibleCauses: Array of 2-3 common possible causes with disclaimers
-- homeRemedies: Array of 3-4 safe home care suggestions
-- whenToSeeDoctor: Array of 3-4 situations when medical care is needed
-- urgentWarnings: Array of 3-5 warning signs requiring immediate medical attention
-
-Keep language simple, supportive, and educational.`
-        },
-        {
-          role: 'user',
-          content: `Patient reports: "${symptoms}". Please provide educational information about these symptoms.`
-        }
-      ],
-      temperature: 0.7,
-      max_tokens: 1000
-    });
-
-    const content = response.choices[0]?.message?.content;
-
-    if (!content) {
-      throw new Error('No response from Groq API');
-    }
-
-    // Parse the JSON response from Groq
-    let parsedResponse;
-    try {
-      parsedResponse = JSON.parse(content);
-    } catch (parseError) {
-      // If JSON parsing fails, create a structured response from the text
-      parsedResponse = {
-        explanation: content.substring(0, 200) + '...',
-        possibleCauses: ['Response parsing error - please try again'],
-        homeRemedies: ['Rest and hydration', 'Monitor symptoms'],
-        whenToSeeDoctor: ['If symptoms persist or worsen'],
-        urgentWarnings: ['Severe symptoms requiring immediate care']
+          "High fever (>39°C / 103°F)",
+          "Severe headache with neck stiffness",
+        ],
       };
     }
 
-    return NextResponse.json(parsedResponse);
+    // ✅ Human readable summary
+    const humanReadable = `
+Understanding Your Symptoms:
+- ${analysis.explanation}
 
-  } catch (error) {
-    console.error('Error analyzing symptoms:', error);
-    
-    // Return a safe fallback response
-    return NextResponse.json({
-      explanation: "I'm having trouble analyzing your symptoms right now. Please consult with a healthcare professional for proper evaluation.",
-      possibleCauses: [
-        "Unable to analyze at this time - please seek medical advice"
-      ],
-      homeRemedies: [
-        "Rest and stay hydrated",
-        "Monitor your symptoms carefully",
-        "Follow general wellness practices"
-      ],
-      whenToSeeDoctor: [
-        "For proper evaluation of your symptoms",
-        "If symptoms persist or worsen",
-        "For peace of mind and professional assessment"
-      ],
-      urgentWarnings: [
-        "Severe or worsening symptoms",
-        "Difficulty breathing",
-        "High fever",
-        "Severe pain",
-        "Any symptoms causing significant concern"
-      ]
-    }, { status: 200 });
+Possible Causes:
+${analysis.possibleCauses.map((c: string) => `- ${c}`).join("\n")}
+
+Self-Care Suggestions:
+${analysis.homeRemedies.map((c: string) => `- ${c}`).join("\n")}
+
+When to See a Doctor:
+${analysis.whenToSeeDoctor.map((c: string) => `- ${c}`).join("\n")}
+
+🚨 Urgent Warning Signs:
+${analysis.urgentWarnings.map((c: string) => `- ${c}`).join("\n")}
+    `.trim();
+
+    return NextResponse.json({ ...analysis, humanReadable });
+  } catch (error: any) {
+    console.error("Error in analyze-symptoms:", error);
+    return NextResponse.json(
+      { error: "Failed to analyze symptoms. Please try again or consult a healthcare professional." },
+      { status: 500 }
+    );
   }
 }

@@ -28,7 +28,7 @@ A hackathon-ready MVP that helps patients input symptoms and get clear, patient-
 
 2. **Set up environment variables**:
    ```bash
-   # Copy .env.local and add your OpenAI API key
+   # Copy .env and add your OpenAI API key
    GROQ_API_KEY=your_groq_api_key_here
    ```
    

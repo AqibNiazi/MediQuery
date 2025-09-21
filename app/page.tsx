@@ -43,12 +43,14 @@ export default function Home() {
     e.preventDefault();
     if (!input.trim() || isLoading) return;
 
+
     const userMessage: Message = {
       id: Date.now().toString(),
       type: 'user',
       content: input,
       timestamp: new Date(),
     };
+
 
     setMessages(prev => [...prev, userMessage]);
     setInput('');
@@ -61,15 +63,18 @@ export default function Home() {
         body: JSON.stringify({ symptoms: input }),
       });
 
+
       const data = await response.json();
-      
+
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
         type: 'assistant',
-        content: data.explanation || 'I received your symptoms and will provide guidance.',
+        content: data.humanReadable || 'I received your symptoms and will provide guidance.',
         timestamp: new Date(),
-        analysis: data,
+        analysis: data // keep structured data for PDF or other uses
       };
+
+
 
       setMessages(prev => [...prev, assistantMessage]);
     } catch (error) {
@@ -77,14 +82,16 @@ export default function Home() {
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
         type: 'assistant',
-        content: 'I apologize, but I encountered an error analyzing your symptoms. Please try again or consult with a healthcare professional.',
+        content: 'I apologize, but I encountered an error analyzing your symptoms. Please try again or consult a healthcare professional.',
         timestamp: new Date(),
       };
+
       setMessages(prev => [...prev, errorMessage]);
     } finally {
       setIsLoading(false);
     }
   };
+
 
   const generateReport = (analysis: SymptomAnalysis, symptoms: string) => {
     const pdf = new jsPDF();
@@ -95,12 +102,12 @@ export default function Home() {
     pdf.setFontSize(20);
     pdf.setFont('helvetica', 'bold');
     pdf.text('MEDICAL SYMPTOM ANALYSIS REPORT', pageWidth / 2, yPosition, { align: 'center' });
-    
+
     yPosition += 15;
     pdf.setFontSize(12);
     pdf.setFont('helvetica', 'normal');
     pdf.text(`Generated on: ${new Date().toLocaleString()}`, pageWidth / 2, yPosition, { align: 'center' });
-    
+
     // Disclaimer Box
     yPosition += 20;
     pdf.setFillColor(255, 243, 243);
@@ -253,7 +260,7 @@ export default function Home() {
               Welcome to MediQuery
             </h2>
             <p className="text-gray-600 mb-8 max-w-2xl mx-auto">
-              Describe your symptoms in plain language, and I'll provide patient-friendly explanations, 
+              Describe your symptoms in plain language, and I'll provide patient-friendly explanations,
               possible causes, home care suggestions, and guidance on when to see a healthcare provider.
             </p>
             <div className="grid md:grid-cols-3 gap-4 max-w-3xl mx-auto mb-8">
@@ -419,8 +426,8 @@ export default function Home() {
                   className="flex-1 border-gray-200 focus:border-blue-500"
                   disabled={isLoading}
                 />
-                <Button 
-                  type="submit" 
+                <Button
+                  type="submit"
                   disabled={!input.trim() || isLoading}
                   className="bg-blue-600 hover:bg-blue-700"
                 >
